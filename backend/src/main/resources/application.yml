@@ -1,0 +1,4 @@
+server:
+  port: 8080
+youtube:
+  api-key: ${AIzaSyCM3K8EPPNlLMPaD-ft57rE6i6Bhgo3QKw:}

@@ -1,0 +1,29 @@
+<main [class.game-mode]="view() === 'game'">
+  @if (view() === 'preparation') {
+    <p class="eyebrow">BL1ND · PRÉPARATION</p><h1>Préparez votre partie.</h1>
+    <p class="intro">Importez une playlist YouTube, vérifiez les morceaux, puis ouvrez la salle de jeu.</p>
+    <form (ngSubmit)="importPlaylist()">
+      <label for="playlist-url">Lien de la playlist YouTube</label>
+      <div class="input-row"><input id="playlist-url" name="playlistUrl" [(ngModel)]="playlistUrl" placeholder="https://www.youtube.com/playlist?list=..." required><button type="submit" [disabled]="loading()">{{ loading() ? 'Import…' : 'Importer' }}</button></div>
+    </form>
+    @if (error()) { <p class="error">{{ error() }}</p> }
+    @if (playlist(); as result) {
+      <section class="preparation-card">
+        <h2>{{ result.title }}</h2><p>{{ result.tracks.length }} morceau(x) importé(s)</p>
+        <button class="play" (click)="openGameRoom()">Ouvrir la salle de jeu</button>
+        <button class="tracks-toggle" type="button" (click)="toggleTracks()">{{ showTracks() ? 'Masquer les musiques intégrées' : 'Voir les musiques intégrées' }}</button>
+        @if (showTracks()) { <ol class="track-list">@for (track of result.tracks; track track.videoId) { <li>@if (track.thumbnailUrl) { <img [src]="track.thumbnailUrl" alt=""> }<span><strong>{{ track.title }}</strong><small>{{ track.channelTitle }}</small></span></li> }</ol> }
+      </section>
+    }
+  } @else if (playlist(); as result) {
+    <p class="eyebrow">BL1ND · SALLE DE JEU</p>
+    <section class="game" [class.revealing]="phase() === 'revealed'">
+      <div class="room-head"><span>{{ result.title }}</span><strong>{{ roundNumber() || 1 }} / {{ result.tracks.length }}</strong><button class="back" (click)="backToPreparation()">Retour à la préparation</button></div>
+      <div class="audio-player"><div id="youtube-audio-player" aria-hidden="true"></div></div>
+      @if (phase() === 'ready') { <div class="room-start"><p>Les joueurs sont prêts ?</p><button class="play" (click)="startRound()">Lancer la partie</button></div> }
+      @if (phase() === 'playing') { <div class="round"><p class="round-label">EXTRAIT EN COURS</p><div class="countdown" aria-label="Temps restant : {{ secondsLeft() }} secondes"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="countdown-track" cx="50" cy="50" r="45"/><circle class="countdown-fill" cx="50" cy="50" r="45"/></svg><p class="timer">{{ secondsLeft() }}</p></div><p>Écoutez, la réponse arrive automatiquement.</p></div> }
+      @if (phase() === 'revealed' && currentTrack(); as track) { <div class="reveal"><p class="round-label">RÉVÉLATION · {{ secondsLeft() }} s</p><h3>{{ track.title }}</h3><p>{{ track.channelTitle }}</p><img class="cover" [src]="thumbnailFor(track)" alt="Cover de {{ track.title }}"><p class="next">La prochaine musique démarre automatiquement.</p></div> }
+      @if (phase() === 'completed') { <div class="room-start"><p class="round-label">PARTIE TERMINÉE</p><p>Tous les morceaux ont été joués.</p><button class="play" (click)="openGameRoom()">Rejouer</button></div> }
+    </section>
+  }
+</main>
