@@ -40,3 +40,20 @@ Le projet contient un `Dockerfile` pour chaque application et un `docker-compose
 4. Ouvrez `http://localhost` pour vérifier le site.
 
 Pour obtenir un lien partageable, déployez ce dépôt sur un serveur disposant de Docker (par exemple une VM Hetzner, Render ou Railway), ouvrez le port 80/443, puis utilisez un domaine et HTTPS. Les salles étant en mémoire, un redémarrage du conteneur les supprime ; une base de données sera nécessaire pour une conservation durable.
+
+### Déployer sur Render
+
+Le fichier `render.yaml` décrit automatiquement les deux services Render :
+
+- `bl1nd-api` : backend Spring Boot exécuté avec Docker.
+- `bl1nd-web` : frontend Angular publié comme site statique.
+
+1. Poussez le dépôt sur GitHub.
+2. Dans Render, choisissez **New > Blueprint** puis sélectionnez ce dépôt.
+3. Render détecte `render.yaml`. Validez la création des deux services.
+4. Dans le service `bl1nd-api`, renseignez la variable secrète `YOUTUBE_API_KEY`.
+5. Lancez le déploiement. Le site sera disponible sur `https://bl1nd-web.onrender.com`.
+
+Le frontend est configuré pour appeler `https://bl1nd-api.onrender.com`. Si Render attribue un autre nom d’URL, modifiez `API_BASE_URL` dans la commande `buildCommand` de `render.yaml`, puis redéployez le frontend. Le backend autorise les domaines `*.onrender.com` pour les appels API.
+
+Pour utiliser un domaine personnalisé, ajoutez-le dans Render sur le service frontend. Si ce domaine n’est pas un sous-domaine `onrender.com`, ajoutez également son origine dans les annotations `@CrossOrigin` des contrôleurs backend.

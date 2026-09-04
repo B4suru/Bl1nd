@@ -7,7 +7,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/rooms")
-@CrossOrigin(origins = "http://localhost:4200")
+@CrossOrigin(originPatterns = {"http://localhost:4200", "https://*.onrender.com"})
 public class RoomController {
     private final RoomService service;
     public RoomController(RoomService service) { this.service = service; }

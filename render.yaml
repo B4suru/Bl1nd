@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: bl1nd-api
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /api/playlists/health
+    envVars:
+      - key: YOUTUBE_API_KEY
+        sync: false
+
+  - type: web
+    name: bl1nd-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && node -e "require('fs').writeFileSync('src/config.js', \`window.__BL1ND_API_URL__ = 'https://bl1nd-api.onrender.com';\`)" && npm run build
+    staticPublishPath: dist/bl1nd-web/browser
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
