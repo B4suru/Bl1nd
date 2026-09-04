@@ -1,29 +1,54 @@
 <main [class.game-mode]="view() === 'game'">
-  @if (view() === 'preparation') {
-    <p class="eyebrow">BL1ND · PRÉPARATION</p><h1>Préparez votre partie.</h1>
-    <p class="intro">Importez une playlist YouTube, vérifiez les morceaux, puis ouvrez la salle de jeu.</p>
-    <form (ngSubmit)="importPlaylist()">
-      <label for="playlist-url">Lien de la playlist YouTube</label>
-      <div class="input-row"><input id="playlist-url" name="playlistUrl" [(ngModel)]="playlistUrl" placeholder="https://www.youtube.com/playlist?list=..." required><button type="submit" [disabled]="loading()">{{ loading() ? 'Import…' : 'Importer' }}</button></div>
-    </form>
+  @if (view() === 'home') {
+    <div class="hero">
+      <p class="eyebrow">BL1ND</p><h1>Quel mode de jeu ?</h1>
+    <p class="intro">Choisissez votre façon de jouer.</p>
+    <div class="mode-choice"><button (click)="chooseMode(false)">Jouer seul</button><button (click)="chooseMode(true)">Jouer multijoueur</button></div>
+    </div>
+  } @else if (view() === 'room') {
+    <p class="eyebrow">{{ multiplayer ? 'BL1ND · SALLE MULTI' : 'BL1ND · PARTIE SOLO' }}</p>
+    <h1>{{ room() ? 'Votre salle' : 'Préparez votre partie' }}</h1>
     @if (error()) { <p class="error">{{ error() }}</p> }
-    @if (playlist(); as result) {
+    @if (!room()) {
+      <div class="room-setup panel">
+        @if (multiplayer) { <label for="player-name">Votre nom<input id="player-name" name="playerName" [(ngModel)]="playerName"></label> }
+        @if (!multiplayer) {
+          <label for="playlist-url">Ajouter une playlist YouTube<input id="playlist-url" name="playlistUrl" [(ngModel)]="playlistUrl" placeholder="https://www.youtube.com/playlist?list=..."></label>
+          <button (click)="importPlaylist()" [disabled]="loading()">{{ loading() ? 'Import…' : 'Ajouter la playlist' }}</button>
+        }
+        @if (!multiplayer) { @if (playlist(); as imported) {
+          <div class="playlist-card"><div><span class="card-kicker">PLAYLIST AJOUTÉE</span><h2>{{ imported.title }}</h2><p>{{ imported.tracks.length }} musique(s)</p></div><button class="secondary" type="button" (click)="toggleTracks()">{{ showTracks() ? 'Masquer les morceaux' : 'Voir les morceaux' }}</button></div>
+          @if (showTracks()) { <ol class="track-list">@for (track of imported.tracks; track track.videoId) { <li>@if (track.thumbnailUrl) { <img [src]="track.thumbnailUrl" alt=""> }<span><strong>{{ track.title }}</strong><small>{{ track.channelTitle }}</small></span></li> }</ol> }
+        } }
+        @if (!multiplayer) {
+          <div class="rules"><div class="section-heading"><span class="card-kicker">PARAMÈTRES</span><h2>Règles de la partie</h2></div><div class="rules-grid"><label>Temps de guess (secondes)<input type="number" min="5" max="60" [(ngModel)]="guessDurationSeconds"></label><label>Temps de révélation (secondes)<input type="number" min="1" max="120" [(ngModel)]="revealDurationSeconds"></label><label>Nombre de musiques <small>0 = toutes</small><input type="number" min="0" [(ngModel)]="musicCount"></label></div><p class="rules-hint">La révélation est de {{ revealDurationSeconds }} secondes.</p></div>
+          <button class="play" (click)="startGame()">Lancer la partie</button>
+        }
+        @if (multiplayer) { <label for="join-code">Code d'une salle existante<input id="join-code" name="joinCode" [(ngModel)]="joinCode"></label><button class="secondary" (click)="joinRoom()">Rejoindre cette salle</button><button class="play" (click)="createRoom()">Créer une salle</button><p class="rules-hint">Les playlists et les règles se configurent une fois dans la salle.</p> }
+      </div>
+    } @else {
       <section class="preparation-card">
-        <h2>{{ result.title }}</h2><p>{{ result.tracks.length }} morceau(x) importé(s)</p>
-        <button class="play" (click)="openGameRoom()">Ouvrir la salle de jeu</button>
-        <button class="tracks-toggle" type="button" (click)="toggleTracks()">{{ showTracks() ? 'Masquer les musiques intégrées' : 'Voir les musiques intégrées' }}</button>
-        @if (showTracks()) { <ol class="track-list">@for (track of result.tracks; track track.videoId) { <li>@if (track.thumbnailUrl) { <img [src]="track.thumbnailUrl" alt=""> }<span><strong>{{ track.title }}</strong><small>{{ track.channelTitle }}</small></span></li> }</ol> }
+        <div class="room-head"><strong>Code : {{ room()!.code }}</strong><span>Joueurs : {{ room()!.players.join(', ') }}</span></div>
+        <div class="add-playlist"><h2>Ajouter une playlist</h2><label for="room-playlist-url">Lien YouTube<input id="room-playlist-url" name="roomPlaylistUrl" [(ngModel)]="playlistUrl" placeholder="https://www.youtube.com/playlist?list=..."></label><button class="secondary" (click)="importPlaylist()">Importer</button>@if (playlist(); as imported) { <p>{{ imported.title }} · {{ imported.tracks.length }} musique(s)</p><button class="play" (click)="addPlaylistToRoom()">Ajouter à la salle</button> }</div>
+        <h2>Playlists de la salle</h2>
+        @for (source of room()!.playlists; track source.id + source.owner) { <div class="playlist-source"><strong>{{ source.title }}</strong><small>Ajoutée par {{ source.owner }} · {{ source.tracks.length }} musique(s)</small></div> }
+        <button class="secondary" type="button" (click)="toggleGlobalTracks()">{{ showGlobalTracks() ? 'Masquer la playlist globale' : 'Voir la playlist globale (' + room()!.tracks.length + ' morceaux)' }}</button>
+        @if (showGlobalTracks()) { <ol class="track-list">@for (track of room()!.tracks; track track.videoId) { <li>@if (track.thumbnailUrl) { <img [src]="track.thumbnailUrl" alt=""> }<span><strong>{{ track.title }}</strong><small>{{ track.channelTitle }}</small></span></li> }</ol> }
+        @if (isHost) {
+          <div class="rules"><h3>Règles</h3><div class="rules-grid"><label>Temps de guess<input type="number" min="5" max="60" [(ngModel)]="guessDurationSeconds"></label><label>Temps de révélation<input type="number" min="1" max="120" [(ngModel)]="revealDurationSeconds"></label><label>Nombre de musiques (0 = toutes)<input type="number" min="0" [(ngModel)]="musicCount"></label></div><button class="secondary" (click)="updateRules()">Enregistrer les règles</button></div>
+        } @else { <div class="rules readonly"><h3>Règles de la partie</h3><p>{{ room()!.guessDurationSeconds }} s de guess · {{ room()!.revealDurationSeconds }} s de révélation · {{ room()!.musicCount || 'toutes' }} musique(s)</p></div> }
+        @if (isHost) { <button class="play" (click)="startGame()">Lancer le blind test</button> } @else { <p class="rules-hint">En attente du lancement par l’hôte…</p> }
       </section>
     }
-  } @else if (playlist(); as result) {
-    <p class="eyebrow">BL1ND · SALLE DE JEU</p>
-    <section class="game" [class.revealing]="phase() === 'revealed'">
-      <div class="room-head"><span>{{ result.title }}</span><strong>{{ roundNumber() || 1 }} / {{ result.tracks.length }}</strong><button class="back" (click)="backToPreparation()">Retour à la préparation</button></div>
-      <div class="audio-player"><div id="youtube-audio-player" aria-hidden="true"></div></div>
-      @if (phase() === 'ready') { <div class="room-start"><p>Les joueurs sont prêts ?</p><button class="play" (click)="startRound()">Lancer la partie</button></div> }
-      @if (phase() === 'playing') { <div class="round"><p class="round-label">EXTRAIT EN COURS</p><div class="countdown" aria-label="Temps restant : {{ secondsLeft() }} secondes"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="countdown-track" cx="50" cy="50" r="45"/><circle class="countdown-fill" cx="50" cy="50" r="45"/></svg><p class="timer">{{ secondsLeft() }}</p></div><p>Écoutez, la réponse arrive automatiquement.</p></div> }
-      @if (phase() === 'revealed' && currentTrack(); as track) { <div class="reveal"><p class="round-label">RÉVÉLATION · {{ secondsLeft() }} s</p><h3>{{ track.title }}</h3><p>{{ track.channelTitle }}</p><img class="cover" [src]="thumbnailFor(track)" alt="Cover de {{ track.title }}"><p class="next">La prochaine musique démarre automatiquement.</p></div> }
-      @if (phase() === 'completed') { <div class="room-start"><p class="round-label">PARTIE TERMINÉE</p><p>Tous les morceaux ont été joués.</p><button class="play" (click)="openGameRoom()">Rejouer</button></div> }
+    <button class="back" (click)="leaveRoom()">Retour à l’accueil</button>
+  } @else if (view() === 'game' && room(); as currentRoom) {
+    <p class="eyebrow">BL1ND · {{ currentRoom.code }}</p><section class="game">
+    <div class="room-head"><span>{{ currentRoom.playlistTitle }}</span><strong>{{ currentRoom.roundNumber }} / {{ currentRoom.tracks.length }}</strong></div><div class="audio-player"><div id="youtube-audio-player"></div></div>
+    <label class="volume-control" for="volume">Volume <input id="volume" type="range" min="0" max="100" [(ngModel)]="volume" (input)="setVolume()"><span>{{ volume }}%</span></label>
+    <button class="back menu-button" type="button" (click)="leaveRoom()">Retour au menu</button>
+      @if (phase() === 'playing') { <div class="round"><p class="round-label">À VOUS DE DEVINER</p><p class="timer">{{ secondsLeft() }}</p></div> }
+      @if (phase() === 'revealed' && currentTrack(); as track) { <div class="reveal"><p class="round-label">RÉVÉLATION · {{ secondsLeft() }} s</p><h3>{{ track.title }}</h3><p>{{ track.channelTitle }}</p><img class="cover" [src]="thumbnailFor(track)" alt=""></div> }
+      @if (phase() === 'completed') { <div class="room-start"><p class="round-label">PARTIE TERMINÉE</p><button class="play" (click)="leaveRoom()">Retour à l’accueil</button></div> }
     </section>
   }
 </main>
