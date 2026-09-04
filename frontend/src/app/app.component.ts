@@ -7,11 +7,11 @@ interface ImportedPlaylist { id: string; title: string; tracks: Track[]; }
 interface RoomPlaylist { id: string; title: string; owner: string; tracks: Track[]; }
 interface Room { code: string; playlistId: string; playlistTitle: string; tracks: Track[]; playlists: RoomPlaylist[]; guessDurationSeconds: number; revealDurationSeconds: number; musicCount: number; players: string[]; started: boolean; phase: 'ready' | 'playing' | 'revealed' | 'completed'; roundNumber: number; currentTrack: Track | null; phaseEndsAt: number; excerptStartSeconds: number; }
 interface YouTubePlayer { loadVideoById(videoId: string | { videoId: string; startSeconds: number }): void; playVideo(): void; setVolume(volume: number): void; stopVideo(): void; }
-declare global { interface Window { YT?: { Player: new (elementId: string, options: object) => YouTubePlayer }; onYouTubeIframeAPIReady?: () => void; } }
+declare global { interface Window { YT?: { Player: new (elementId: string, options: object) => YouTubePlayer }; onYouTubeIframeAPIReady?: () => void; __BL1ND_API_URL__?: string; } }
 
 @Component({ selector: 'app-root', imports: [FormsModule], templateUrl: './app.component.html', styleUrl: './app.component.css' })
 export class AppComponent implements OnDestroy {
-  private readonly apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8080' : '';
+  private readonly apiBaseUrl = window.__BL1ND_API_URL__ || (window.location.hostname === 'localhost' ? 'http://localhost:8080' : '');
   playlistUrl = ''; playlist = signal<ImportedPlaylist | null>(null); room = signal<Room | null>(null);
   error = signal(''); loading = signal(false); view = signal<'home' | 'room' | 'game'>('home');
   phase = signal<'ready' | 'playing' | 'revealed' | 'completed'>('ready'); currentTrack = signal<Track | null>(null);
