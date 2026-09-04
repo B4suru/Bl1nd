@@ -2,6 +2,8 @@ package fr.bl1nd.playlist;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,12 +15,20 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/playlists")
 @CrossOrigin(origins = "http://localhost:4200")
 public class PlaylistController {
+    private static final Logger logger = LoggerFactory.getLogger(PlaylistController.class);
     private final YouTubePlaylistService service;
     public PlaylistController(YouTubePlaylistService service) { this.service = service; }
 
     @PostMapping("/import")
     public ImportedPlaylist importPlaylist(@Valid @RequestBody ImportPlaylistRequest request) {
-        try { return service.importPlaylist(request.playlistUrl()); }
-        catch (PlaylistImportException exception) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception); }
+        logger.info("Demande d'import reçue pour une playlist YouTube.");
+        try {
+            ImportedPlaylist playlist = service.importPlaylist(request.playlistUrl());
+            logger.info("Import terminé : {} morceau(x) récupéré(s).", playlist.tracks().size());
+            return playlist;
+        } catch (PlaylistImportException exception) {
+            logger.warn("Import refusé : {}", exception.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        }
     }
 }

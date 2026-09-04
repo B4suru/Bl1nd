@@ -3,6 +3,8 @@ package fr.bl1nd.playlist;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
@@ -16,6 +18,7 @@ import java.util.List;
 @Service
 public class YouTubePlaylistService {
     private static final String API_URL = "https://www.googleapis.com/youtube/v3/playlistItems";
+    private static final Logger logger = LoggerFactory.getLogger(YouTubePlaylistService.class);
     private final ObjectMapper mapper;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final String apiKey;
@@ -26,8 +29,12 @@ public class YouTubePlaylistService {
     }
 
     public ImportedPlaylist importPlaylist(String playlistUrl) {
-        if (apiKey.isBlank()) throw new PlaylistImportException("La clé YouTube n'est pas configurée. Définissez YOUTUBE_API_KEY.");
+        if (apiKey.isBlank()) {
+            logger.error("Import impossible : aucune clé YouTube configurée.");
+            throw new PlaylistImportException("La clé YouTube n'est pas configurée. Définissez YOUTUBE_API_KEY.");
+        }
         String playlistId = PlaylistUrlParser.extractPlaylistId(playlistUrl);
+        logger.info("Début de l'import de la playlist {}.", playlistId);
         List<Track> tracks = new ArrayList<>();
         String token = null;
         String title = "Playlist YouTube";
@@ -48,6 +55,7 @@ public class YouTubePlaylistService {
             }
             token = page.path("nextPageToken").asText(null);
         } while (token != null);
+        logger.info("Playlist {} importée : {} morceau(x) jouable(s).", playlistId, tracks.size());
         return new ImportedPlaylist(playlistId, title, tracks);
     }
 
@@ -57,7 +65,11 @@ public class YouTubePlaylistService {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(url.toUriString())).timeout(Duration.ofSeconds(20)).GET().build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) throw new PlaylistImportException("YouTube n'a pas pu charger cette playlist (code " + response.statusCode() + ").");
+            logger.info("Réponse YouTube pour la playlist {} : HTTP {}.", playlistId, response.statusCode());
+            if (response.statusCode() != 200) {
+                logger.error("Erreur YouTube pour la playlist {} : {}.", playlistId, youtubeError(response.body()));
+                throw new PlaylistImportException("YouTube n'a pas pu charger cette playlist (code " + response.statusCode() + ").");
+            }
             return mapper.readTree(response.body());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -66,6 +78,18 @@ public class YouTubePlaylistService {
             throw exception;
         } catch (Exception exception) {
             throw new PlaylistImportException("Impossible de contacter YouTube.", exception);
+        }
+    }
+
+    private String youtubeError(String responseBody) {
+        try {
+            JsonNode error = mapper.readTree(responseBody).path("error");
+            String reason = error.path("errors").path(0).path("reason").asText("");
+            String message = error.path("message").asText("");
+            if (!reason.isBlank() && !message.isBlank()) return reason + " - " + message;
+            return !message.isBlank() ? message : "Réponse d'erreur sans détail.";
+        } catch (Exception exception) {
+            return "Réponse d'erreur illisible.";
         }
     }
 }
